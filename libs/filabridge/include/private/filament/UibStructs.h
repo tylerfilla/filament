@@ -118,7 +118,7 @@ struct PerViewUib { // NOLINT(cppcoreguidelines-pro-type-member-init)
     // --------------------------------------------------------------------------------------------
     math::float4 zParams;                       // froxel Z parameters
     math::uint3 fParams;                        // stride-x, stride-y, stride-z
-    int32_t lightChannels;                      // light channel bits
+    int32_t lightCount;                         // dynamic light count
     math::float2 froxelCountXY;
 
     // IBL
@@ -130,7 +130,7 @@ struct PerViewUib { // NOLINT(cppcoreguidelines-pro-type-member-init)
     // Directional Lighting [variant: DIR]
     // --------------------------------------------------------------------------------------------
     math::float3 lightDirection;                // directional light direction
-    float padding0;
+    int32_t lightChannels;                      // light channel bits
     math::float4 lightColorIntensity;           // directional light
     math::float4 sun;                           // cos(sunAngle), sin(sunAngle), 1/(sunAngle*HALO_SIZE-sunAngle), HALO_EXP
     math::float2 shadowFarAttenuationParams;    // a, a/far (a=1/pct-of-far)
@@ -261,7 +261,7 @@ struct LightsUib { // NOLINT(cppcoreguidelines-pro-type-member-init)
     float reserved1;                  // 0
     math::half4 colorIES;             // { half3(col),  IES index   }
     math::float2 spotScaleOffset;     // { scale, offset }
-    float reserved3;                  // 0
+    float spotCosOuterSquared;        // cos^2(outer) (outer is the half angle)
     float intensity;                  // float
     uint32_t typeShadow;              // 0x00.00.ii.ct (t: 0=point, 1=spot, c:contact, ii: index)
     uint32_t channels;                // 0x000c00ll (ll: light channels, c: caster)

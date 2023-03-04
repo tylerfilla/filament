@@ -592,7 +592,9 @@ void FView::prepare(FEngine& engine, DriverApi& driver, RootArenaScope& rootAren
         auto const& lightData = scene->getLightData();
 
         // now we know if we have dynamic lighting (i.e.: dynamic lights are visible)
-        mHasDynamicLighting = lightData.size() > FScene::DIRECTIONAL_LIGHTS_COUNT;
+        uint32_t const dynamicLightCount =
+                scene->getLightData().size() - FScene::DIRECTIONAL_LIGHTS_COUNT;
+        mHasDynamicLighting = dynamicLightCount > 0;
 
         // we also know if we have a directional light
         FLightManager::Instance const directionalLight =
@@ -606,7 +608,8 @@ void FView::prepare(FEngine& engine, DriverApi& driver, RootArenaScope& rootAren
                     cameraInfo.projection, cameraInfo.zn, cameraInfo.zf)) {
                 // TODO: might be more consistent to do this in prepareLighting(), but it's not
                 //       strictly necessary
-                mColorPassDescriptorSet.prepareDynamicLights(mFroxelizer);
+
+                mColorPassDescriptorSet.prepareDynamicLights(mFroxelizer, dynamicLightCount);
             }
             // We need to pass viewMatrix by value here because it extends the scope of this
             // function.

@@ -3,6 +3,17 @@
 // see: Real-time Atmospheric Effects in Games (Carsten Wenzel)
 //------------------------------------------------------------------------------
 
+float inScattering(highp vec3 rayStart, vec3 rayDir, highp vec3 lightPos, highp float rayDistance) {
+    highp vec3 q = rayStart - lightPos;
+    highp float b = dot(rayDir, q);
+    highp float c = dot(q, q);
+    highp float s = 1.0 / sqrt(c - b*b);
+
+    highp float x = s * rayDistance;
+    highp float y = s * b;
+    return s * atan(x, 1.0 + (x+y) * y);
+}
+
 vec4 fog(vec4 color, highp vec3 view) {
     // note: d can be +inf with the skybox
     highp float d = length(view);
@@ -77,6 +88,88 @@ vec4 fog(vec4 color, highp vec3 view) {
 
         fogColor += sunColor * (sunInscattering * (1.0 - sunTransmittance));
     }
+#if defined(VARIANT_HAS_DYNAMIC_LIGHTING) && !defined(MATERIAL_HAS_SHADOW_MULTIPLIER)
+    if (true)
+    {
+        uint channels = object_uniforms_flagsChannels & 0xFFu;
+        // Iterate point lights
+        for (uint i=0; i<frameUniforms.lightCount; i++) {
+            Light light = getLight(i);
+            if ((light.channels & channels) == 0u) {
+                continue;
+            }
+
+            if (light.type == LIGHT_TYPE_SPOT && light.spotCosOuterSquared>0.5 ) {
+                highp vec3 D = normalize(view);
+                highp vec3 V = light.direction;
+                highp vec3 O = getWorldPosition();
+                highp vec3 C = light.worldPosition;
+                highp float c2 = light.spotCosOuterSquared;
+
+                highp vec3 CO = O - C;
+                highp float DV = dot(D, V);
+                highp float COV = dot(CO, V);
+                highp float a = DV * DV - c2;
+                highp float b = 2.0 * (DV * COV - dot(D, CO) * c2);
+                highp float c = COV*COV - dot(CO, CO) * c2;
+
+                highp float delta = b*b - 4*a*c;
+                if (delta <= 0.0) {
+                    continue;
+                }
+
+                highp float t0 = (-b - sqrt(delta)) / 2.0 * a;
+                highp float t1 = (-b + sqrt(delta)) / 2.0 * a;
+
+                if (t0>0 && t1>0) {
+                    continue;
+                }
+
+                highp vec3 P0 = O + D * t0;
+                highp vec3 P1 = O + D * t1;
+
+                if (dot(P0-C, V) < 0) {
+                    continue;
+                }
+
+                if (dot(P1-C, V) < 0) {
+                    continue;
+                }
+
+
+                // compute a new line-integral for a different start distance
+                highp float inscatteringDensityIntegral = fogOpticalPathAtOneMeter * d;
+                // Compute the transmittance using the Beer-Lambert Law
+                float inscatteringDensity = exp(-inscatteringDensityIntegral);
+                // Compute the opacity from the transmittance
+                float inscatteringOpacity = 1.0 - inscatteringDensity;
+
+                float inscat = inScattering(
+                P0,
+                shading_view,
+                light.worldPosition, length(P1-P0));
+
+                fogColor += light.colorIntensity.rgb * light.colorIntensity.w  * (inscat * inscatteringOpacity) *0.001;
+
+            } else {
+
+                // compute a new line-integral for a different start distance
+                highp float inscatteringDensityIntegral = fogOpticalPathAtOneMeter * d;
+                // Compute the transmittance using the Beer-Lambert Law
+                float inscatteringDensity = exp(-inscatteringDensityIntegral);
+                // Compute the opacity from the transmittance
+                float inscatteringOpacity = 1.0 - inscatteringDensity;
+
+                float inscat = inScattering(
+                getWorldPosition(),
+                shading_view,
+                light.worldPosition, d);
+
+                fogColor += light.colorIntensity.rgb * light.colorIntensity.w  * (inscat * inscatteringOpacity) *0.0001;
+            }
+        }
+    }
+#endif
 
 #if   defined(BLEND_MODE_OPAQUE)
     // nothing to do here

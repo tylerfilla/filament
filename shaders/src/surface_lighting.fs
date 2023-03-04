@@ -6,6 +6,7 @@ struct Light {
     float NoL;
     highp vec3 direction;
     float zLight;
+    float spotCosOuterSquared;
     bool castsShadows;
     bool contactShadows;
     uint type;

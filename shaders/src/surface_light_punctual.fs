@@ -135,6 +135,7 @@ Light getLight(const uint lightIndex) {
         unpackHalf2x16(floatBitsToUint(data[2][1]))
     );
     highp vec2 scaleOffset = data[2].zw;
+    highp float spotCosOuterSquared = data[3][0];
     highp float intensity = data[3][1];
     highp uint typeShadow = floatBitsToUint(data[3][2]);
     highp uint channels = floatBitsToUint(data[3][3]);
@@ -154,6 +155,7 @@ Light getLight(const uint lightIndex) {
     light.worldPosition = positionFalloff.xyz;
     light.channels = int(channels);
     light.contactShadows = bool(typeShadow & 0x10u);
+    light.spotCosOuterSquared = spotCosOuterSquared;
 #if defined(VARIANT_HAS_DYNAMIC_LIGHTING)
     light.type = (typeShadow & 0x1u);
 #if defined(VARIANT_HAS_SHADOWING)

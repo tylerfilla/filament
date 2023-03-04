@@ -639,10 +639,6 @@ std::string ShaderGenerator::createSurfaceFragmentProgram(ShaderModel shaderMode
     CodeGenerator::generateSurfaceMaterial(fs, ShaderStage::FRAGMENT);
     CodeGenerator::generateSurfaceParameters(fs, ShaderStage::FRAGMENT);
 
-    if (filament::Variant::isFogVariant(variant)) {
-        CodeGenerator::generateSurfaceFog(fs, ShaderStage::FRAGMENT);
-    }
-
     // shading model
     if (filament::Variant::isValidDepthVariant(variant)) {
         // In MASKED mode or with transparent shadows, we need the alpha channel computed by
@@ -670,6 +666,11 @@ std::string ShaderGenerator::createSurfaceFragmentProgram(ShaderModel shaderMode
             CodeGenerator::generateSurfaceUnlit(fs, ShaderStage::FRAGMENT, variant,
                     material.hasShadowMultiplier);
         }
+
+        if (filament::Variant::isFogVariant(variant)) {
+            CodeGenerator::generateSurfaceFog(fs, ShaderStage::FRAGMENT);
+        }
+
         // entry point
         CodeGenerator::generateSurfaceMain(fs, ShaderStage::FRAGMENT);
     }

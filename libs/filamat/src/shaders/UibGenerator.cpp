@@ -138,7 +138,7 @@ BufferInterfaceBlock const& UibGenerator::getPerViewUib() noexcept  {
             // ------------------------------------------------------------------------------------
             { "zParams",                0, Type::FLOAT4                  },
             { "fParams",                0, Type::UINT3                   },
-            { "lightChannels",          0, Type::INT                     },
+            { "lightCount",             0, Type::INT                     },
             { "froxelCountXY",          0, Type::FLOAT2                  },
 
             { "iblLuminance",           0, Type::FLOAT,  Precision::DEFAULT, FeatureLevel::FEATURE_LEVEL_0 },
@@ -149,7 +149,7 @@ BufferInterfaceBlock const& UibGenerator::getPerViewUib() noexcept  {
             // Directional Lighting [variant: DIR]
             // ------------------------------------------------------------------------------------
             { "lightDirection",         0, Type::FLOAT3, Precision::HIGH, FeatureLevel::FEATURE_LEVEL_0 },
-            { "padding0",               0, Type::FLOAT                   },
+            { "lightChannels",          0, Type::INT                     },
             { "lightColorIntensity",    0, Type::FLOAT4, Precision::DEFAULT, FeatureLevel::FEATURE_LEVEL_0 },
             { "sun",                    0, Type::FLOAT4, Precision::DEFAULT, FeatureLevel::FEATURE_LEVEL_0 },
             { "shadowFarAttenuationParams", 0, Type::FLOAT2, Precision::HIGH },

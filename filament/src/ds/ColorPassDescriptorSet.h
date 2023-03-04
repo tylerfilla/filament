@@ -130,7 +130,7 @@ public:
     void prepareAmbientLight(FEngine& engine,
             FIndirectLight const& ibl, float intensity, float exposure) noexcept;
 
-    void prepareDynamicLights(Froxelizer& froxelizer) noexcept;
+    void prepareDynamicLights(Froxelizer& froxelizer, uint32_t lightCount) noexcept;
 
     void prepareShadowVSM(TextureHandle texture,
             ShadowMappingUniforms const& shadowMappingUniforms,
