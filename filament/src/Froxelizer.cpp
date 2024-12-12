@@ -111,9 +111,10 @@ Froxelizer::Froxelizer(FEngine& engine)
         return;
     }
 
-    mFroxelBufferEntryCount = std::min(
-            FROXEL_BUFFER_MAX_ENTRY_COUNT,
-            engine.getDriverApi().getMaxUniformBufferSize() / 16u);
+//    mFroxelBufferEntryCount = std::min(
+//            FROXEL_BUFFER_MAX_ENTRY_COUNT,
+//            engine.getDriverApi().getMaxUniformBufferSize() / 16u);
+    mFroxelBufferEntryCount = 4096;
 
     mRecordsBuffer = driverApi.createBufferObject(RECORD_BUFFER_ENTRY_COUNT,
             BufferObjectBinding::UNIFORM, BufferUsage::DYNAMIC);
@@ -224,25 +225,32 @@ bool Froxelizer::prepare(
 void Froxelizer::computeFroxelLayout(
         uint2* dim, uint16_t* countX, uint16_t* countY, uint16_t* countZ,
         size_t froxelBufferEntryCount, filament::Viewport const& viewport) noexcept {
-
     auto roundTo8 = [](uint32_t v) { return (v + 7u) & ~7u; };
 
     const uint32_t width  = std::max(16u, viewport.width);
     const uint32_t height = std::max(16u, viewport.height);
 
+    utils::slog.e <<"compute froxel layout width=" << width << " height=" << height <<
+            " entry=" << froxelBufferEntryCount << 
+            utils::io::endl;
+
     // calculate froxel dimension from FROXEL_BUFFER_ENTRY_COUNT_MAX and viewport
     // - Start from the maximum number of froxels we can use in the x-y plane
     size_t const froxelSliceCount = FROXEL_SLICE_COUNT;
     size_t const froxelPlaneCount = froxelBufferEntryCount / froxelSliceCount;
+
+    utils::slog.e <<"compute slice=" << froxelSliceCount << " plane=" << froxelPlaneCount << utils::io::endl;
     // - compute the number of square froxels we need in width and height, rounded down
     //   solving: |  froxelCountX * froxelCountY == froxelPlaneCount
     //            |  froxelCountX / froxelCountY == width / height
     size_t froxelCountX = size_t(std::sqrt(froxelPlaneCount * width  / height));
     size_t froxelCountY = size_t(std::sqrt(froxelPlaneCount * height / width));
+    utils::slog.e <<"a froxelCount=" << froxelCountX << "x" << froxelCountY << utils::io::endl;
     // - compute the froxels dimensions, rounded up
     size_t const froxelSizeX = (width  + froxelCountX - 1) / froxelCountX;
     size_t const froxelSizeY = (height + froxelCountY - 1) / froxelCountY;
     // - and since our froxels must be square, only keep the largest dimension
+    utils::slog.e <<"a froxelSize=" << froxelSizeX << "x" << froxelSizeY << utils::io::endl;
 
     //  make sure we're at lease multiple of 8 to improve performance in the shader
     size_t const froxelDimension = roundTo8((roundTo8(froxelSizeX) >= froxelSizeY) ? froxelSizeX : froxelSizeY);
@@ -269,6 +277,8 @@ void Froxelizer::updateBoundingSpheres(
         math::float4 const* UTILS_RESTRICT planesX,
         math::float4 const* UTILS_RESTRICT planesY,
         float const* UTILS_RESTRICT planesZ) noexcept {
+
+    utils::slog.e <<"update bounding spheres" << utils::io::endl;
 
     SYSTRACE_CALL();
 
@@ -326,6 +336,8 @@ UTILS_NOINLINE
 bool Froxelizer::update() noexcept {
     bool uniformsNeedUpdating = false;
     if (UTILS_UNLIKELY(mDirtyFlags & VIEWPORT_CHANGED)) {
+
+        utils::slog.e <<"froxelizer update" << utils::io::endl;
         filament::Viewport const& viewport = mViewport;
 
         uint2 froxelDimension;
@@ -520,6 +532,7 @@ void Froxelizer::commit(backend::DriverApi& driverApi) {
 void Froxelizer::froxelizeLights(FEngine& engine,
         mat4f const& UTILS_RESTRICT viewMatrix,
         const FScene::LightSoa& UTILS_RESTRICT lightData) noexcept {
+//    utils::slog.e << "froxelize lights" << utils::io::endl;
     // note: this is called asynchronously
     froxelizeLoop(engine, viewMatrix, lightData);
     froxelizeAssignRecordsCompress();
@@ -618,7 +631,6 @@ void Froxelizer::froxelizeLoop(FEngine& engine,
 }
 
 void Froxelizer::froxelizeAssignRecordsCompress() noexcept {
-
     SYSTRACE_CALL();
 
     Slice<FroxelThreadData> const froxelThreadData = mFroxelShardedData;
@@ -682,6 +694,9 @@ void Froxelizer::froxelizeAssignRecordsCompress() noexcept {
         // note: initializer list for union cannot have more than one element
         FroxelEntry entry{ offset, uint8_t(std::min(size_t(255), b.lights.count())) };
         const size_t lightCount = entry.count();
+
+        utils::slog.e << "froxel count=" << mFroxelCount << " i=" << i
+                      << " light-count=" << lightCount << b.lights.getValue() << utils::io::endl;
 
         if (UTILS_UNLIKELY(offset + lightCount >= RECORD_BUFFER_ENTRY_COUNT)) {
 #ifndef NDEBUG

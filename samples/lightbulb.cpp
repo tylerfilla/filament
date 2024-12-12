@@ -249,7 +249,7 @@ static void setup(Engine* engine, View* view, Scene* scene) {
     view->setBloomOptions({ .enabled = true });
 
     if (g_moreLights) {
-       g_lights.push_back(em.create());
+        g_lights.push_back(em.create());
         LightManager::Builder(LightManager::Type::POINT)
                 .color(Color::toLinear<ACCURATE>(sRGBColor(0.98f, 0.92f, 0.89f)))
                 .intensity(1000.0f, LightManager::EFFICIENCY_LED)
@@ -267,7 +267,7 @@ static void setup(Engine* engine, View* view, Scene* scene) {
                 .falloff(4.0f)
                 .castShadows(true)
                 .build(*engine, g_lights.back());
-
+/*
         g_lights.push_back(em.create());
         LightManager::Builder(LightManager::Type::POINT)
                 .color(Color::toLinear<ACCURATE>(sRGBColor(0.18f, 0.12f, 0.89f)))
@@ -294,6 +294,7 @@ static void setup(Engine* engine, View* view, Scene* scene) {
                 .falloff(4.0f)
                 .castShadows(true)
                 .build(*engine, g_lights.back());
+*/
 
         for (const auto& light : g_lights) {
             scene->addEntity(light);

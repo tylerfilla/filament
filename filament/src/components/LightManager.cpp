@@ -184,6 +184,8 @@ void FLightManager::create(const FLightManager::Builder& builder, utils::Entity 
         lightType.shadowCaster = builder->mCastShadows;
         lightType.lightCaster = builder->mCastLight;
 
+
+        utils::slog.e <<"before channel i=" << i << utils::io::endl;
         mManager[i].channels = builder->mChannels;
 
         // set default values by calling the setters
