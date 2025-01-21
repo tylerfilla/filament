@@ -245,6 +245,8 @@ void FilamentApp::run(const Config& config, SetupCallback setupCallback,
     SDL_EventState(SDL_DROPFILE, SDL_ENABLE);
     SDL_Window* sdlWindow = window->getSDLWindow();
 
+    static size_t iii = 0;
+
     while (!mClosed) {
         if (mWindowTitle != SDL_GetWindowTitle(sdlWindow)) {
             SDL_SetWindowTitle(sdlWindow, mWindowTitle.c_str());
@@ -506,6 +508,10 @@ void FilamentApp::run(const Config& config, SetupCallback setupCallback,
         } else {
             ++mSkippedFrames;
         }
+
+        for (size_t i = 0; i < 50; ++i) {
+            SDL_SetWindowSize(sdlWindow, 800 + ((iii + i) % 100), 400);
+	}
     }
 
     if (mImGuiHelper) {
