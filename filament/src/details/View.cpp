@@ -128,7 +128,8 @@ FView::FView(FEngine& engine)
     mColorPassDescriptorSet.init(
             mLightUbh,
             mFroxelizer.getRecordBuffer(),
-            mFroxelizer.getFroxelBuffer());
+            mFroxelizer.getFroxelBuffer(),
+            mFroxelizer.getFroxelBufferByteCount());
 }
 
 FView::~FView() noexcept = default;

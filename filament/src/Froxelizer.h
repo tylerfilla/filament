@@ -33,6 +33,8 @@
 #include <math/mat4.h>
 #include <math/vec4.h>
 
+
+#include "utils/Log.h"
 namespace filament {
 
 // Max number of froxels limited by:
@@ -42,7 +44,7 @@ namespace filament {
 // the light indices per froxel. The record buffer is limited to min(16K[ubo], 64K[uint16]) entries,
 // so with 8192 froxels, we can store 2 lights per froxels assuming they're all used. In practice,
 // some froxels are not used, so we can store more.
-constexpr size_t FROXEL_BUFFER_MAX_ENTRY_COUNT = 8192;
+constexpr size_t FROXEL_BUFFER_MAX_ENTRY_COUNT = 4096;
 
 class FEngine;
 class FCamera;
@@ -146,6 +148,7 @@ public:
         inline uint16_t offset() const noexcept { return u32 >> 16u; }
         uint32_t u32 = 0;
     };
+    static_assert(sizeof(FroxelEntry) == 4);
 
     // we can't change this easily because the shader expects 16 indices per uint4
     using RecordBufferType = uint8_t;
@@ -156,6 +159,10 @@ public:
     // this is chosen so froxelizePointAndSpotLight() vectorizes 4 froxel tests / spotlight
     // with 256 lights this implies 8 jobs (256 / 32) for froxelization.
     using LightGroupType = uint32_t;
+
+    size_t getFroxelBufferByteCount() const noexcept {
+        return getFroxelBufferEntryCount() * sizeof(FroxelEntry);
+    }
 
 private:
     size_t getFroxelBufferEntryCount() const noexcept {

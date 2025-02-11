@@ -315,7 +315,7 @@ utils::io::sstream& CodeGenerator::generateCommonProlog(utils::io::sstream& out,
         // some Adreno drivers on Android. see: https://github.com/google/filament/issues/6444
         //
         out << "const int CONFIG_MAX_INSTANCES = " << (int)CONFIG_MAX_INSTANCES << ";\n";
-        out << "const int CONFIG_FROXEL_BUFFER_HEIGHT = 2048;\n";
+        out << "const int CONFIG_FROXEL_BUFFER_HEIGHT = 1024;\n";
     } else {
         generateSpecializationConstant(out, "CONFIG_MAX_INSTANCES",
                 +ReservedSpecializationConstants::CONFIG_MAX_INSTANCES, (int)CONFIG_MAX_INSTANCES);

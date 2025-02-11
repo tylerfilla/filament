@@ -91,6 +91,11 @@ void DescriptorSet::commitSlow(DescriptorSetLayout const& layout,
                     descriptors[binding].texture.th,
                     descriptors[binding].texture.params);
         } else {
+            if (binding == 4) {
+//                utils::slog.e <<"this=" << this <<
+//                        " binding at 4=" << descriptors[binding].buffer.boh.getId() <<
+//                        " size=" <<descriptors[binding].buffer.size << utils::io::endl;
+            }
             driver.updateDescriptorSetBuffer(dsh, binding,
                     descriptors[binding].buffer.boh,
                     descriptors[binding].buffer.offset,
@@ -127,6 +132,12 @@ void DescriptorSet::bind(FEngine::DriverApi& driver, DescriptorSetBindingPoints 
 void DescriptorSet::setBuffer(
         backend::descriptor_binding_t const binding,
         backend::Handle<backend::HwBufferObject> boh, uint32_t const offset, uint32_t const size) noexcept {
+
+    if (binding == 4) {
+        utils::slog.e <<"set buffer=" << boh.getId() << " this=" << this <<
+                " size=" << size << utils::io::endl;
+    }
+    
     // TODO: validate it's the right kind of descriptor
     if (mDescriptors[binding].buffer.boh != boh || mDescriptors[binding].buffer.size != size) {
         // we don't set the dirty bit if only offset changes

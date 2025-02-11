@@ -26,6 +26,7 @@
 #include "VulkanHandles.h"
 #include "VulkanMemory.h"
 #include "VulkanTexture.h"
+#include "utils/Log.h"
 #include "vulkan/memory/ResourceManager.h"
 #include "vulkan/memory/ResourcePointer.h"
 #include "vulkan/utils/Conversion.h"
@@ -377,6 +378,7 @@ void VulkanDriver::collectGarbage() {
 void VulkanDriver::beginFrame(int64_t monotonic_clock_ns,
         int64_t refreshIntervalNs, uint32_t frameId) {
     FVK_PROFILE_MARKER(PROFILE_NAME_BEGINFRAME);
+//    utils::slog.e <<"begin frame" << utils::io::endl;
     // Do nothing.
 }
 
@@ -393,6 +395,7 @@ void VulkanDriver::setPresentationTime(int64_t monotonic_clock_ns) {
 
 void VulkanDriver::endFrame(uint32_t frameId) {
     FVK_PROFILE_MARKER(PROFILE_NAME_ENDFRAME);
+//    utils::slog.e <<"end frame" << utils::io::endl;
     mCommands.flush();
     collectGarbage();
 }
@@ -403,9 +406,17 @@ void VulkanDriver::updateDescriptorSetBuffer(
         backend::BufferObjectHandle boh,
         uint32_t offset,
         uint32_t size) {
+
+    static uint64_t count = 0;
     FVK_SYSTRACE_SCOPE();
     auto set = resource_ptr<VulkanDescriptorSet>::cast(&mResourceManager, dsh);
     auto buffer = resource_ptr<VulkanBufferObject>::cast(&mResourceManager, boh);
+
+    if (binding == 2 && (count++) % 200 == 0) {
+        utils::slog.e <<"updating with bufferx=" << buffer.id() <<
+                " size=" << size << " offset=" << offset<< utils::io::endl;
+    }
+
     mDescriptorSetManager.updateBuffer(set, binding, buffer, offset, size);
 }
 
@@ -504,6 +515,10 @@ void VulkanDriver::createBufferObjectR(Handle<HwBufferObject> boh, uint32_t byte
         BufferObjectBinding bindingType, BufferUsage usage) {
     auto bo = resource_ptr<VulkanBufferObject>::make(&mResourceManager, boh, mAllocator, mStagePool,
             byteCount, bindingType);
+    if (bo.id() == 62964) {
+        utils::slog.e << "created buffer=" << bo.id() << " of type=" << bindingType << " usage=" << usage <<
+                " sizes=" << byteCount << utils::io::endl;
+    }
     bo.inc();
 }
 
@@ -1152,6 +1167,17 @@ void VulkanDriver::updateBufferObject(Handle<HwBufferObject> boh, BufferDescript
 
     auto bo = resource_ptr<VulkanBufferObject>::cast(&mResourceManager, boh);
     commands.acquire(bo);
+
+    if (bo.id() == 62964) {
+        utils::slog.e << "update buffer=" << bo.id() << " size=" << bd.size
+                      <<" offset=" << byteOffset << utils::io::endl;
+    }
+    
+
+//    if (bd.size == 16384 || bd.size == 16384 * 2) {
+//        utils::slog.e <<"update buffer=" << bo.id() << " offset=" << byteOffset <<
+//                " size=" << bd.size << utils::io::endl;
+//    }
     bo->buffer.loadFromCpu(commands.buffer(), bd.buffer, byteOffset, bd.size);
 
     scheduleDestroy(std::move(bd));

@@ -81,7 +81,8 @@ public:
     void init(
             backend::BufferObjectHandle lights,
             backend::BufferObjectHandle recordBuffer,
-            backend::BufferObjectHandle froxelBuffer) noexcept;
+            backend::BufferObjectHandle froxelBuffer,
+            size_t froxeBufferSize) noexcept;
 
     void terminate(HwDescriptorSetLayoutFactory& factory, backend::DriverApi& driver);
 

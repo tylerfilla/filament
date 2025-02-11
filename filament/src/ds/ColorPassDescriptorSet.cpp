@@ -128,14 +128,15 @@ ColorPassDescriptorSet::ColorPassDescriptorSet(FEngine& engine,
 void ColorPassDescriptorSet::init(
         BufferObjectHandle lights,
         BufferObjectHandle recordBuffer,
-        BufferObjectHandle froxelBuffer) noexcept {
+        BufferObjectHandle froxelBuffer,
+        size_t froxeBufferSize) noexcept {
     for (auto&& descriptorSet: mDescriptorSet) {
         descriptorSet.setBuffer(+PerViewBindingPoints::LIGHTS,
-                lights, 0, sizeof(LightsUib));
+                lights, 0, CONFIG_MAX_LIGHT_COUNT * sizeof(LightsUib));
         descriptorSet.setBuffer(+PerViewBindingPoints::RECORD_BUFFER,
                 recordBuffer, 0, sizeof(FroxelRecordUib));
         descriptorSet.setBuffer(+PerViewBindingPoints::FROXEL_BUFFER,
-                froxelBuffer, 0, sizeof(FroxelsUib));
+                froxelBuffer, 0, froxeBufferSize);
     }
 }
 

@@ -131,15 +131,22 @@ Froxelizer::Froxelizer(FEngine& engine)
         return;
     }
 
+    constexpr size_t FROXEL_ENTRY_SIZE = sizeof(FroxelEntry);
+    static_assert(FROXEL_ENTRY_SIZE % 4 == 0);
+    constexpr size_t MAX_BUFFER_SIZE = sizeof(FroxelsUib);
+    
     mFroxelBufferEntryCount = std::min(
             FROXEL_BUFFER_MAX_ENTRY_COUNT,
-            engine.getDriverApi().getMaxUniformBufferSize() / 16u);
+            MAX_BUFFER_SIZE / FROXEL_ENTRY_SIZE);
 
     mRecordsBuffer = driverApi.createBufferObject(RECORD_BUFFER_ENTRY_COUNT,
             BufferObjectBinding::UNIFORM, BufferUsage::DYNAMIC);
 
-    mFroxelsBuffer = driverApi.createBufferObject(getFroxelBufferEntryCount() * 16u,
+    mFroxelsBuffer = driverApi.createBufferObject(
+            getFroxelBufferEntryCount() * FROXEL_ENTRY_SIZE,
             BufferObjectBinding::UNIFORM, BufferUsage::DYNAMIC);
+    utils::slog.e <<"creating froxel buffer=" << mFroxelsBuffer.getId() << " of size=" <<
+            getFroxelBufferEntryCount() * FROXEL_ENTRY_SIZE << utils::io::endl;
 }
 
 Froxelizer::~Froxelizer() {
@@ -206,6 +213,7 @@ bool Froxelizer::prepare(
      */
 
     // froxel buffer (~32 KiB)
+//    utils::slog.e <<"------------------ prepare!" << utils::io::endl;
     mFroxelBufferUser = {
             driverApi.allocatePod<FroxelEntry>(getFroxelBufferEntryCount()),
             getFroxelBufferEntryCount() };
@@ -527,7 +535,9 @@ std::pair<size_t, size_t> Froxelizer::clipToIndices(float2 const& clip) const no
 void Froxelizer::commit(DriverApi& driverApi) {
     // send data to GPU
     driverApi.updateBufferObject(mFroxelsBuffer,
-            { mFroxelBufferUser.data(), getFroxelBufferEntryCount() * 16u }, 0);
+            {mFroxelBufferUser.data(), getFroxelBufferEntryCount() * sizeof(FroxelEntry)}, 0);
+//    utils::slog.e << "updating with=" << mFroxelsBuffer.getId()
+//                  << " size=" << getFroxelBufferEntryCount() * sizeof(FroxelEntry) << utils::io::endl;
 
     driverApi.updateBufferObject(mRecordsBuffer,
             { mRecordBufferUser.data(), RECORD_BUFFER_ENTRY_COUNT }, 0);
