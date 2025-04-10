@@ -146,6 +146,7 @@ VulkanPlatformSurfaceSwapChain::~VulkanPlatformSurfaceSwapChain() {
 }
 
 VkResult VulkanPlatformSurfaceSwapChain::create() {
+    utils::slog.e <<"create!! " << mSwapchain << utils::io::endl;    
     VkSurfaceFormatKHR surfaceFormat = {};
     VkSurfaceCapabilitiesKHR caps;
     vkGetPhysicalDeviceSurfaceCapabilitiesKHR(mPhysicalDevice, mSurface, &caps);
@@ -300,6 +301,7 @@ VkResult VulkanPlatformSurfaceSwapChain::acquire(VulkanPlatform::ImageSyncData* 
 }
 
 VkResult VulkanPlatformSurfaceSwapChain::present(uint32_t index, VkSemaphore finished) {
+//    utils::slog.e <<"present!! " << mSwapchain << utils::io::endl;        
     uint32_t currentIndex = index;
     VkSemaphore finishedDrawing = finished;
     VkPresentInfoKHR presentInfo{
@@ -344,6 +346,7 @@ VkResult VulkanPlatformSurfaceSwapChain::recreate() {
 }
 
 void VulkanPlatformSurfaceSwapChain::destroy() {
+    utils::slog.e <<"destroy!! " << mSwapchain << utils::io::endl;
     // The next part is not ideal. We don't have a good signal on when it's ok to destroy
     // a swapchain. This is a spec oversight and mentioned as much:
     // https://github.com/KhronosGroup/Vulkan-Docs/issues/1678
@@ -358,7 +361,9 @@ void VulkanPlatformSurfaceSwapChain::destroy() {
     // the queue to be idle. The hope is that this only happens on resize, where performance
     // degradation is less obvious (until, of course, people complain about lag when rotating their
     // phone). If necessary, we can revisit and implement the workaround [1].
-    vkQueueWaitIdle(mQueue);
+    VkResult result = vkQueueWaitIdle(mQueue);
+    FILAMENT_CHECK_POSTCONDITION(result == VK_SUCCESS)
+            << "Unable to wait on queue: " << static_cast<int32_t>(result);
 
     VulkanPlatformSwapChainImpl::destroy();
 
