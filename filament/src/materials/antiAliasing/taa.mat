@@ -176,20 +176,26 @@ vec3 untonemap(const vec3 c) {
     return c * rcp(max(epsilon, 1.0 - max3(c)));
 }
 
-// 2-D Separable Lanczos-2 approximation, input is squared and must be [-4, 4]
-// This is the correct 2D application of Lanczos.
-// L(x, y) = L(x) * L(y)
-float lanczos2_SquaredInputApproximate(highp vec2 x2) {
-    highp vec2 wA = x2 - 4.0;
-    highp vec2 wB = x2 * wA - wA;
+// 1-D Lanczos-2 approximation, input is squared and must be [-4, 4]
+float lanczos2_SquaredInputApproximate(highp float x2) {
+    highp float wA = x2 - 4.0;
+    highp float wB = x2 * wA - wA;
     wA *= wA;
     wB *= wA;
-    return wB.x * wB.y * (1.0 / 4096.0);
+    return wB * (1.0 / 64.0);
 }
 
-// 2-D application of Lanczos-2 filter, input must be [-2, 2] x [-2, 2]
-float lanczos2(vec2 v) {
+// 1-D Lanczos-2 filter, input must be [-2, 2]
+float lanczos2(float v) {
     return lanczos2_SquaredInputApproximate(v * v);
+}
+
+// 1-D Lanczos-2 filter, input must be [-2, 2]
+float lanczos2(float v, float scale) {
+    if (materialConstants_upscaling) {
+        v = clamp(v * scale, -2.0, 2.0);
+    }
+    return lanczos2(v);
 }
 
 vec3 RGB_YCoCg(const vec3 c) {
@@ -398,7 +404,6 @@ void postProcess(inout PostProcessInputs postProcess) {
             //     dcenter = (p * inputSize - jitter) - uv * inputSize
 
             filtered = vec4(vec3(0), filtered.a);
-            highp float sum = 0.0;
             if (materialConstants_upscaling) {
                 // the weigths act as a blending factor because they acount only for a part of the
                 // reconstruction filter (for this frame). If the max weight is 0, it doesn't mean we must
@@ -406,18 +411,32 @@ void postProcess(inout PostProcessInputs postProcess) {
                 // final reconstruction.
                 confidence = 0.0;
             }
-            for (int i = 0; i < 9; i++) {
-                // distance from sample to fragment
-                vec2 d = dcenter + kInputFilterSampleOffsets[i];
-                if (materialConstants_upscaling) {
-                    // the filter is always scaled to the reconstructed pixel size
-                    d *= materialParams.scale;
-                    d = clamp(d, vec2(-2,-2), vec2(2,2));
-                }
-                float w = lanczos2(d);
-                sum += w;
-                filtered.rgb += s[i] * w;
-            }
+
+            // The 2D application of the lanczos filter as a separable filter, which is the correct application
+            // of lanczos, however it is not isotropic.
+            float w0 = lanczos2(dcenter.x - 1.0, materialParams.scale);
+            float w1 = lanczos2(dcenter.x,       materialParams.scale);
+            float w2 = lanczos2(dcenter.x + 1.0, materialParams.scale);
+            float w3 = lanczos2(dcenter.y - 1.0, materialParams.scale);
+            float w4 = lanczos2(dcenter.y,       materialParams.scale);
+            float w5 = lanczos2(dcenter.y + 1.0, materialParams.scale);
+            highp float wx = w0 + w1 + w2;
+            highp float wy = w3 + w4 + w5;
+            float sum = wx * wy;
+            vec3 f;
+            f  = s[5] * w0;
+            f += s[1] * w1;
+            f += s[6] * w2;
+            filtered.rgb += f * w3;
+            f  = s[2] * w0;
+            f += s[0] * w1;
+            f += s[3] * w2;
+            filtered.rgb += f * w4;
+            f  = s[7] * w0;
+            f += s[4] * w1;
+            f += s[8] * w2;
+            filtered.rgb += f * w5;
+
             // Deringing must happen in RGB, because clamping in YCoCg can produce out-of-gamut colors
             filtered.rgb *= (1.0 / sum);
             filtered.rgb = clamp(filtered.rgb, box9min, box9max);
