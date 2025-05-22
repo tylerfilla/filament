@@ -277,6 +277,11 @@ PlatformEGLAndroid::ExternalImageDescAndroid PlatformEGLAndroid::getExternalImag
     return metadata;
 }
 
+void PlatformEGLAndroid::reattachStream(Stream* stream, intptr_t tname) {
+    mExternalStreamManager.detach(stream);
+    mExternalStreamManager.attach(stream, tname);
+}
+
 bool PlatformEGLAndroid::setExternalImage(ExternalImageHandleRef externalImage,
         UTILS_UNUSED_IN_RELEASE ExternalTexture* texture) noexcept {
     auto const* const eglExternalImage =

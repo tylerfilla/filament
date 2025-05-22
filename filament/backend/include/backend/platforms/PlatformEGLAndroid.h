@@ -58,6 +58,12 @@ public:
 
     ExternalImageDescAndroid UTILS_PUBLIC getExternalImageDesc(ExternalImageHandle externalImage) noexcept;
 
+    /**
+     * In the case of a switch from protected to non-protected context, we need to detach and then
+     * attach again all the streams that have already been attached.
+     */
+    void reattachStream(Stream* stream, intptr_t tname);
+
 protected:
     // --------------------------------------------------------------------------------------------
     // Platform Interface

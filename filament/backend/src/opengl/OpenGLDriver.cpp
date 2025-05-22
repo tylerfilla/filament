@@ -2518,6 +2518,14 @@ void OpenGLDriver::makeCurrent(Handle<HwSwapChain> schDraw, Handle<HwSwapChain> 
                 mContext.unbindEverything();
             },
             [this](size_t index) {
+
+#if defined(__ANDROID__)
+                // TODO: make this cleaner
+                auto eglPlatform = static_cast<PlatformEGLAndroid*>(*mPlatform);
+                for (auto t: mTexturesWithStreamsAttached) {
+                    eglPlatform->reattachStream(t->hwStream, t->gl.id);
+                }
+#endif
                 // OpenGL context has changed, resynchronize the state with the cache
                 mContext.synchronizeStateAndCache(index);
                 slog.d << "*** OpenGL context change : " << (index ? "protected" : "default") << io::endl;
