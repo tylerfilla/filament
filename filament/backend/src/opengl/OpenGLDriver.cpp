@@ -2513,10 +2513,16 @@ void OpenGLDriver::makeCurrent(Handle<HwSwapChain> schDraw, Handle<HwSwapChain> 
 
     mPlatform.makeCurrent(scDraw->swapChain, scRead->swapChain,
             [this]() {
+                for (auto t: mTexturesWithStreamsAttached) {
+                    mPlatform.detach(t->hwStream->stream);
+                }
                 // OpenGL context is about to change, unbind everything
                 mContext.unbindEverything();
             },
             [this](size_t index) {
+                for (auto t: mTexturesWithStreamsAttached) {
+                    mPlatform.attach(t->hwStream->stream, t->gl.id);
+                }
                 // OpenGL context has changed, resynchronize the state with the cache
                 mContext.synchronizeStateAndCache(index);
                 slog.d << "*** OpenGL context change : " << (index ? "protected" : "default") << io::endl;
