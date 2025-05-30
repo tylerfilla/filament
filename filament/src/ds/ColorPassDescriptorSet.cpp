@@ -101,8 +101,7 @@ ColorPassDescriptorSet::ColorPassDescriptorSet(FEngine& engine, bool const vsm,
                         descriptor_sets::getPerViewDescriptorSetLayout(
                                 MaterialDomain::SURFACE, lit, ssr, fog, vsm)
                 };
-                mDescriptorSet[index] = DescriptorSet{
-                        "ColorPassDescriptorSet", mDescriptorSetLayout[index] };
+                mDescriptorSet[index] = DescriptorSet{ mDescriptorSetLayout[index] };
             }
         }
     }
@@ -110,11 +109,11 @@ ColorPassDescriptorSet::ColorPassDescriptorSet(FEngine& engine, bool const vsm,
     setBuffer(+PerViewBindingPoints::FRAME_UNIFORMS,
             uniforms.getUboHandle(), 0, uniforms.getSize());
 
-    setSampler(+PerViewBindingPoints::IBL_DFG_LUT,
-            engine.getDFG().isValid() ?
-                    engine.getDFG().getTexture() : engine.getZeroTexture(), {
-                    .filterMag = SamplerMagFilter::LINEAR
-            });
+    if (engine.getDFG().isValid()) {
+        TextureSampler const sampler(TextureSampler::MagFilter::LINEAR);
+        setSampler(+PerViewBindingPoints::IBL_DFG_LUT,
+                engine.getDFG().getTexture(), sampler.getSamplerParams());
+    }
 }
 
 void ColorPassDescriptorSet::init(
@@ -299,7 +298,6 @@ void ColorPassDescriptorSet::prepareFog(FEngine& engine, const CameraInfo& camer
 
 void ColorPassDescriptorSet::prepareSSAO(Handle<HwTexture> ssao,
         AmbientOcclusionOptions const& options) noexcept {
-
     // High quality sampling is enabled only if AO itself is enabled and upsampling quality is at
     // least set to high and of course only if upsampling is needed.
     const bool highQualitySampling = options.upsampling >= QualityLevel::HIGH
@@ -532,28 +530,20 @@ void ColorPassDescriptorSet::commit(DriverApi& driver) noexcept {
         driver.updateBufferObject(mUniforms.getUboHandle(),
                 mUniforms.toBufferDescriptor(driver), 0);
     }
-
-
     for (size_t i = 0; i < DESCRIPTOR_LAYOUT_COUNT; i++) {
         mDescriptorSet[i].commit(mDescriptorSetLayout[i], driver);
     }
 }
 
-void ColorPassDescriptorSet::unbindSamplers(FEngine& engine) noexcept {
+void ColorPassDescriptorSet::unbindSamplers(DriverApi&) noexcept {
     // this needs to reset the sampler that are only set in RendererUtils::colorPass(), because
     // this descriptor-set is also used for ssr/picking/structure and these could be stale
     // it would be better to use a separate descriptor-set for those two cases so that we don't
     // have to do this
-    setBuffer(+PerViewBindingPoints::SHADOWS,
-            engine.getDummyUniformBuffer(), 0, sizeof(ShadowUib));
-    setSampler(+PerViewBindingPoints::STRUCTURE,
-            engine.getZeroTexture(), {});
-    setSampler(+PerViewBindingPoints::SHADOW_MAP,
-            engine.getOneTextureArrayDepth(), {});
-    setSampler(+PerViewBindingPoints::SSAO,
-            engine.getZeroTextureArray(), {});
-    setSampler(+PerViewBindingPoints::SSR,
-            engine.getZeroTextureArray(), {});
+    setSampler(+PerViewBindingPoints::STRUCTURE, {}, {});
+    setSampler(+PerViewBindingPoints::SHADOW_MAP, {}, {});
+    setSampler(+PerViewBindingPoints::SSAO, {}, {});
+    setSampler(+PerViewBindingPoints::SSR, {}, {});
 }
 
 void ColorPassDescriptorSet::setSampler(descriptor_binding_t const binding,

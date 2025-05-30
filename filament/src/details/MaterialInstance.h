@@ -67,8 +67,6 @@ public:
 
     void commitStreamUniformAssociations(FEngine::DriverApi& driver);
     
-    void commit(FEngine& engine) const;
-
     void commit(FEngine::DriverApi& driver) const;
 
     void use(FEngine::DriverApi& driver) const;

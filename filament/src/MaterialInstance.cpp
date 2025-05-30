@@ -398,8 +398,4 @@ bool MaterialInstance::isDepthCullingEnabled() const noexcept {
     return downcast(this)->isDepthCullingEnabled();
 }
 
-void MaterialInstance::commit(Engine& engine) const {
-    downcast(this)->commit(downcast(engine));
-}
-
 } // namespace filament

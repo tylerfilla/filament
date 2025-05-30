@@ -432,28 +432,25 @@ void FEngine::init() {
     } else
 #endif
     {
+        mDefaultColorGrading = downcast(ColorGrading::Builder().build(*this));
+
         FMaterial::DefaultMaterialBuilder defaultMaterialBuilder;
         switch (mConfig.stereoscopicType) {
             case StereoscopicType::NONE:
             case StereoscopicType::INSTANCED:
                 defaultMaterialBuilder.package(
-                        MATERIALS_DEFAULTMATERIAL_DATA, MATERIALS_DEFAULTMATERIAL_SIZE);
+                    MATERIALS_DEFAULTMATERIAL_DATA, MATERIALS_DEFAULTMATERIAL_SIZE);
                 break;
             case StereoscopicType::MULTIVIEW:
 #ifdef FILAMENT_ENABLE_MULTIVIEW
                 defaultMaterialBuilder.package(
-                        MATERIALS_DEFAULTMATERIAL_MULTIVIEW_DATA,
-                        MATERIALS_DEFAULTMATERIAL_MULTIVIEW_SIZE);
+                    MATERIALS_DEFAULTMATERIAL_MULTIVIEW_DATA, MATERIALS_DEFAULTMATERIAL_MULTIVIEW_SIZE);
 #else
                 assert_invariant(false);
 #endif
                 break;
         }
         mDefaultMaterial = downcast(defaultMaterialBuilder.build(*this));
-    }
-
-    if (UTILS_UNLIKELY(getSupportedFeatureLevel() >= FeatureLevel::FEATURE_LEVEL_1)) {
-        mDefaultColorGrading = downcast(ColorGrading::Builder().build(*this));
 
         constexpr float3 dummyPositions[1] = {};
         constexpr short4 dummyTangents[1] = {};
@@ -477,9 +474,6 @@ void FEngine::init() {
 
         driverApi.update3DImage(mDummyZeroTextureArray, 0, 0, 0, 0, 1, 1, 1,
                 { zeroRGBA.data(), size(zeroRGBA), Texture::Format::RGBA, Texture::Type::UBYTE });
-
-        mDummyUniformBuffer = driverApi.createBufferObject(CONFIG_MINSPEC_UBO_SIZE,
-                BufferObjectBinding::UNIFORM, BufferUsage::STATIC);
 
         mLightManager.init(*this);
         mDFG.init(*this);
@@ -630,8 +624,6 @@ void FEngine::shutdown() {
     driver.destroyTexture(std::move(mDummyZeroTextureArray));
     driver.destroyTexture(std::move(mDummyOneTextureArrayDepth));
 
-    driver.destroyBufferObject(std::move(mDummyUniformBuffer));
-
     driver.destroyRenderTarget(std::move(mDefaultRenderTarget));
 
     /*
@@ -677,12 +669,8 @@ void FEngine::prepare() {
 
     for (auto& materialInstanceList: mMaterialInstances) {
         materialInstanceList.second.forEach([&driver](FMaterialInstance* item) {
-            // post-process materials instances must be commited explicitly because their
-            // parameters are typically not set at this point in time.
-            if (item->getMaterial()->getMaterialDomain() == MaterialDomain::SURFACE) {
-                item->commitStreamUniformAssociations(driver);
-                item->commit(driver);
-            }
+            item->commitStreamUniformAssociations(driver);
+            item->commit(driver);
         });
     }
 

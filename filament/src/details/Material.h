@@ -94,7 +94,21 @@ public:
     }
 
     DescriptorSetLayout const& getPerViewDescriptorSetLayout(
-            Variant const variant, bool const useVsmDescriptorSetLayout) const noexcept;
+            Variant const variant, bool const useVsmDescriptorSetLayout) const noexcept {
+        if (Variant::isValidDepthVariant(variant)) {
+            assert_invariant(mMaterialDomain == MaterialDomain::SURFACE);
+            return mEngine.getPerViewDescriptorSetLayoutDepthVariant();
+        }
+        if (Variant::isSSRVariant(variant)) {
+            assert_invariant(mMaterialDomain == MaterialDomain::SURFACE);
+            return mEngine.getPerViewDescriptorSetLayoutSsrVariant();
+        }
+        if (useVsmDescriptorSetLayout) {
+            assert_invariant(mMaterialDomain == MaterialDomain::SURFACE);
+            return mPerViewDescriptorSetLayoutVsm;
+        }
+        return mPerViewDescriptorSetLayout;
+    }
 
     DescriptorSetLayout const& getDescriptorSetLayout() const noexcept {
         return mDescriptorSetLayout;
@@ -141,17 +155,30 @@ public:
 
     // getProgram returns the backend program for the material's given variant.
     // Must be called after prepareProgram().
-    [[nodiscard]]
-    backend::Handle<backend::HwProgram> getProgram(Variant const variant) const noexcept {
+    [[nodiscard]] backend::Handle<backend::HwProgram> getProgram(Variant const variant) const noexcept {
 #if FILAMENT_ENABLE_MATDBG
-        return getProgramWithMATDBG(variant);
+        assert_invariant((size_t)variant.key < VARIANT_COUNT);
+        std::unique_lock<utils::Mutex> lock(mActiveProgramsLock);
+        if (getMaterialDomain() == MaterialDomain::SURFACE) {
+            auto vert = Variant::filterVariantVertex(variant);
+            auto frag = Variant::filterVariantFragment(variant);
+            mActivePrograms.set(vert.key);
+            mActivePrograms.set(frag.key);
+        } else {
+            mActivePrograms.set(variant.key);
+        }
+        lock.unlock();
+
+        if (isSharedVariant(variant)) {
+            FMaterial const* const pDefaultMaterial = mEngine.getDefaultMaterial();
+            if (pDefaultMaterial && pDefaultMaterial->mCachedPrograms[variant.key]) {
+                return pDefaultMaterial->getProgram(variant);
+            }
+        }
 #endif
         assert_invariant(mCachedPrograms[variant.key]);
         return mCachedPrograms[variant.key];
     }
-
-    [[nodiscard]]
-    backend::Handle<backend::HwProgram> getProgramWithMATDBG(Variant variant) const noexcept;
 
     bool isVariantLit() const noexcept { return mIsVariantLit; }
 

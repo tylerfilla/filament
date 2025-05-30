@@ -29,7 +29,6 @@
 #include <utils/compiler.h>
 #include <utils/bitset.h>
 #include <utils/FixedCapacityVector.h>
-#include <utils/StaticString.h>
 
 #include <stdint.h>
 
@@ -38,7 +37,7 @@ namespace filament {
 class DescriptorSet {
 public:
     DescriptorSet() noexcept;
-    explicit DescriptorSet(utils::StaticString name, DescriptorSetLayout const& descriptorSetLayout) noexcept;
+    explicit DescriptorSet(DescriptorSetLayout const& descriptorSetLayout) noexcept;
     DescriptorSet(DescriptorSet const&) = delete;
     DescriptorSet(DescriptorSet&& rhs) noexcept;
     DescriptorSet& operator=(DescriptorSet const&) = delete;
@@ -75,7 +74,7 @@ public:
             backend::SamplerParams params);
 
     // Used for duplicating material
-    DescriptorSet duplicate(utils::StaticString name, DescriptorSetLayout const& layout) const noexcept;
+    DescriptorSet duplicate(DescriptorSetLayout const& layout) const noexcept;
 
     backend::DescriptorSetHandle getHandle() const noexcept {
         return mDescriptorSetHandle;
@@ -110,7 +109,6 @@ private:
     mutable utils::bitset64 mValid;                         //  8
     backend::DescriptorSetHandle mDescriptorSetHandle;      //  4
     mutable bool mSetAfterCommitWarning = false;            //  1
-    utils::StaticString mName;                              // 16
 };
 
 } // namespace filament
