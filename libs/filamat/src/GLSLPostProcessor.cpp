@@ -283,6 +283,68 @@ static void collectDescriptorSets(const GLSLPostProcessor::Config& config, Descr
 
 } // namespace msl
 
+void GLSLPostProcessor::addDontInlineAttribute(SpirvBlob& spirv,
+            const std::string& functionNameIsh) {
+    constexpr size_t HEADER_SIZE = 5;
+    if (spirv.size() <= HEADER_SIZE) {
+        return;
+    }
+
+    uint32_t functionId = 0;
+
+    // Pass 1: Find the function ID from its name.
+    // We iterate through all instructions, looking for OpName.
+    for (uint32_t cursor = HEADER_SIZE; cursor < spirv.size();) {
+        uint32_t const firstWord = spirv[cursor];
+        uint32_t const wordCount = firstWord >> 16;
+        if (wordCount == 0) {
+            // Should not happen in a valid SPIR-V blob.
+            break;
+        }
+        uint32_t const op = firstWord & 0x0000FFFF;
+        if (op == spv::Op::OpName) {
+            // OpName Target, "Name"
+            // The name string is null-terminated and padded with 0s to make up a whole number of words.
+            if (cursor + 2 < spirv.size()) {
+                uint32_t const targetId = spirv[cursor + 1];
+                char const* name = reinterpret_cast<char const*>(&spirv[cursor + 2]);
+                if (strstr(name, functionNameIsh.c_str()) != nullptr) {
+                    functionId = targetId;
+                    break;
+                }
+            }
+        }
+        cursor += wordCount;
+    }
+
+    if (functionId == 0) {
+        // The function was not found, which may be expected if it was optimized out.
+        return;
+    }
+
+    // Pass 2: Find the OpFunction instruction and modify its function control mask.
+    for (uint32_t cursor = HEADER_SIZE; cursor < spirv.size();) {
+        uint32_t const firstWord = spirv[cursor];
+        uint32_t const wordCount = firstWord >> 16;
+        if (wordCount == 0) {
+            // Should not happen in a valid SPIR-V blob.
+            break;
+        }
+        uint32_t const op = firstWord & 0x0000FFFF;
+        if (op == spv::Op::OpFunction) {
+            // OpFunction is |opcode+count|result_type|result_id|function_control|function_type|
+            if (cursor + 3 < spirv.size()) {
+                uint32_t const resultId = spirv[cursor + 2];
+                if (resultId == functionId) {
+                    spirv[cursor + 3] |= spv::FunctionControlDontInlineMask;
+                    return;
+                }
+            }
+        }
+        cursor += wordCount;
+    }
+}
+
 GLSLPostProcessor::GLSLPostProcessor(MaterialBuilder::Optimization optimization, uint32_t flags)
         : mOptimization(optimization),
           mPrintShaders(flags & PRINT_SHADERS),
@@ -850,6 +912,26 @@ bool GLSLPostProcessor::fullOptimization(const TShader& tShader,
     SpvOptions options;
     options.generateDebugInfo = mGenerateDebugInfo;
     GlslangToSpv(*tShader.getIntermediate(), spirv, &options);
+
+    if (config.domain == MaterialDomain::SURFACE) {
+        if (config.shaderType == ShaderStage::VERTEX) {
+            addDontInlineAttribute(spirv, "materialVertex(struct-MaterialVertexInputs");
+        }
+        if (config.shaderType == ShaderStage::FRAGMENT) {
+            addDontInlineAttribute(spirv, "material(struct-MaterialInputs");
+        }
+    } else if (config.domain == MaterialDomain::POST_PROCESS) {
+        if (config.shaderType == ShaderStage::VERTEX) {
+            addDontInlineAttribute(spirv, "postProcessVertex(struct-PostProcessVertexInputs");
+        }
+        if (config.shaderType == ShaderStage::FRAGMENT) {
+            addDontInlineAttribute(spirv, "postProcess(struct-PostProcessInputs");
+        }
+    } else if (config.domain == MaterialDomain::COMPUTE) {
+        if (config.shaderType == ShaderStage::COMPUTE) {
+            addDontInlineAttribute(spirv, "compute(");
+        }
+    }
 
     if (internalConfig.spirvOutput) {
         // Run the SPIR-V optimizer

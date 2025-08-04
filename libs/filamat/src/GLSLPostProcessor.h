@@ -93,6 +93,8 @@ public:
 
     static bool spirvToWgsl(SpirvBlob* spirv, std::string* outWsl);
 
+    static void addDontInlineAttribute(SpirvBlob& spirv, const std::string& functionNameIsh);
+
 private:
     struct InternalConfig {
         std::string* glslOutput = nullptr;
