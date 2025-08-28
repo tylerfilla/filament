@@ -26,24 +26,33 @@ namespace filament {
 struct MaterialConstant {
     using ConstantType = backend::ConstantType;
 
+    enum class Mutability {
+        IMMUTABLE,
+        MUTABLE_UNMANAGED,
+        MUTABLE_MANAGED,
+    };
+    static constexpr size_t NUM_MUTABILITY = 3;
+
     utils::CString name;
     ConstantType type;
+    union DefaultValue {
+        int32_t i;
+        float f;
+        bool b;
+    } defaultValue;
 
     MaterialConstant() = default;
-    MaterialConstant(utils::CString name, ConstantType type) : name(std::move(name)), type(type)  {}
+    MaterialConstant(utils::CString name, ConstantType type, DefaultValue defaultValue)
+            : name(std::move(name)), type(type), defaultValue(defaultValue) {}
 };
 
-struct MaterialMutableConstant {
-    utils::CString name;
-    // The Filament engine stores mutable spec constants as a bitfield, meaning that must override
-    // all of the default values built into in the shader souces. Therefore, unlike the immutable
-    // constants above, we have to store the default values in the material metadata.
-    bool defaultValue;
-
-    MaterialMutableConstant() = default;
-    MaterialMutableConstant(utils::CString name, bool defaultValue)
-            : name(std::move(name)), defaultValue(defaultValue) {}
+struct MaterialConstantList {
+    size_t offset;
+    utils::FixedCapacityVector<MaterialConstant> list;
 };
+
+using MaterialConstantLists =
+        std::array<filament::MaterialConstantList, filament::MaterialConstant::NUM_MUTABILITY>;
 
 }
 

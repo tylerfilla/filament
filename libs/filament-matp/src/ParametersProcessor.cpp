@@ -352,17 +352,19 @@ static bool processConstant(MaterialBuilder& builder, const JsonishObject& jsonO
         return false;
     }
 
-    const JsonishValue* mutableValue = jsonObject.getValue("mutable");
-    bool isMutable;
-    if (mutableValue) {
-        const JsonishBool* mutableBool = mutableValue->toJsonBool();
-        if (!mutableBool) {
-            std::cerr << "constants: mutable value must be BOOL." << std::endl;
-            return false;
+    ConstantMutability mutability;
+    {
+        const JsonishValue* mutabilityValue = jsonObject.getValue("mutability");
+        if (mutabilityValue) {
+            const JsonishString* mutabilityString = mutabilityValue->toJsonString();
+            if (!Enums::isValid<ConstantMutability>(mutabilityString->getString())){
+                return logEnumIssue(
+                        "mutability", *mutabilityString, Enums::map<ParameterPrecision>());
+            }
+            mutability = Enums::toEnum<ConstantMutability>(mutabilityString->getString());
+        } else {
+            mutability = ConstantMutability::IMMUTABLE;
         }
-        isMutable = mutableBool->getBool();
-    } else {
-        isMutable = false;
     }
 
     auto typeString = typeValue->toJsonString()->getString();
@@ -383,7 +385,7 @@ static bool processConstant(MaterialBuilder& builder, const JsonishObject& jsonO
                     // FIXME: Jsonish doesn't distinguish between integers and floats.
                     intDefault = (int32_t)defaultValue->toJsonNumber()->getFloat();
                 }
-                builder.constant(nameString.c_str(), type, isMutable, intDefault);
+                builder.constant(nameString.c_str(), type, mutability, intDefault);
                 break;
             }
             case ConstantType::FLOAT: {
@@ -396,7 +398,7 @@ static bool processConstant(MaterialBuilder& builder, const JsonishObject& jsonO
                     }
                     floatDefault = defaultValue->toJsonNumber()->getFloat();
                 }
-                builder.constant(nameString.c_str(), type, isMutable, floatDefault);
+                builder.constant(nameString.c_str(), type, mutability, floatDefault);
                 break;
             }
             case ConstantType::BOOL:
@@ -409,7 +411,7 @@ static bool processConstant(MaterialBuilder& builder, const JsonishObject& jsonO
                     }
                     boolDefault = defaultValue->toJsonBool()->getBool();
                 }
-                builder.constant(nameString.c_str(), type, isMutable, boolDefault);
+                builder.constant(nameString.c_str(), type, mutability, boolDefault);
                 break;
         }
     } else {

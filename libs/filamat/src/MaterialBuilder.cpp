@@ -323,21 +323,21 @@ MaterialBuilder& MaterialBuilder::parameter(const char* name, SamplerType sample
 
 template<typename T, typename>
 MaterialBuilder& MaterialBuilder::constant(const char* name, ConstantType const type,
-        bool isMutable, T defaultValue) {
-    ConstantList& constants = isMutable ? mMutableConstants : mConstants;
-    const ConstantList& otherConstants = isMutable ? mConstants : mMutableConstants;
-    auto result = std::find_if(constants.begin(), constants.end(),
+        MaterialBuilder::ConstantMutability mutability, T defaultValue) {
+    FILAMENT_CHECK_PRECONDITION(
+            mutability != MaterialBuilder::ConstantMutability::MUTABLE_MANAGED ||
+            type == ConstantType::BOOL)
+            << "Managed mutable spec constants must be bool type.";
+
+    auto result = std::find_if(mConstants.begin(), mConstants.end(),
             [name](const Constant& c) { return c.name == CString(name); });
-    FILAMENT_CHECK_POSTCONDITION(result == constants.end())
-            << "There is already a constant parameter present with the name " << name << ".";
-    auto otherResult = std::find_if(otherConstants.begin(), otherConstants.end(),
-            [name](const Constant& c) { return c.name == CString(name); });
-    FILAMENT_CHECK_POSTCONDITION(otherResult == otherConstants.end())
+    FILAMENT_CHECK_POSTCONDITION(result == mConstants.end())
             << "There is already a constant parameter present with the name " << name << ".";
 
     Constant constant {
             .name = CString(name),
             .type = type,
+            .mutability = mutability,
     };
     auto toString = [](ConstantType const t) {
         switch (t) {
@@ -366,20 +366,27 @@ MaterialBuilder& MaterialBuilder::constant(const char* name, ConstantType const 
         assert_invariant(false);
     }
 
-    if (isMutable) {
-        FILAMENT_CHECK_POSTCONDITION(type == ConstantType::BOOL)
-                << "Mutable spec constants must be bool type.";
+    switch (mutability) {
+        case ConstantMutability::IMMUTABLE:
+            mNumImmutableConstants++;
+            break;
+        case ConstantMutability::MUTABLE_MANAGED:
+            mNumMutableManagedConstants++;
+            break;
+        case ConstantMutability::MUTABLE_UNMANAGED:
+            mNumMutableUnmanagedConstants++;
+            break;
     }
 
-    constants.push_back(constant);
+    mConstants.push_back(constant);
     return *this;
 }
 template MaterialBuilder& MaterialBuilder::constant<int32_t>(
-        const char* name, ConstantType type, bool isMutable, int32_t defaultValue);
+        const char* name, ConstantType type, ConstantMutability mutability, int32_t defaultValue);
 template MaterialBuilder& MaterialBuilder::constant<float>(
-        const char* name, ConstantType type, bool isMutable, float defaultValue);
+        const char* name, ConstantType type, ConstantMutability mutability, float defaultValue);
 template MaterialBuilder& MaterialBuilder::constant<bool>(
-        const char* name, ConstantType type, bool isMutable, bool defaultValue);
+        const char* name, ConstantType type, ConstantMutability mutability, bool defaultValue);
 
 MaterialBuilder& MaterialBuilder::buffer(BufferInterfaceBlock bib) {
     FILAMENT_CHECK_POSTCONDITION(mBuffers.size() < MAX_BUFFERS_COUNT) << "Too many buffers";
@@ -958,7 +965,7 @@ bool MaterialBuilder::generateShaders(JobSystem& jobSystem, const std::vector<Va
     BlobDictionary spirvDictionary;
     // End: must be protected by lock
 
-    ShaderGenerator sg(mProperties, mVariables, mOutputs, mDefines, mConstants, mMutableConstants, mPushConstants,
+    ShaderGenerator sg(mProperties, mVariables, mOutputs, mDefines, mConstants, mPushConstants,
             mMaterialFragmentCode.getResolved(), mMaterialFragmentCode.getLineOffset(),
             mMaterialVertexCode.getResolved(), mMaterialVertexCode.getLineOffset(),
             mMaterialDomain);
@@ -1414,6 +1421,18 @@ error:
         goto error;
     }
 
+    // Build user constant lists.
+    {
+        // Constants 0 to CONFIG_MAX_RESERVED_SPEC_CONSTANTS - 1 are reserved by Filament.
+        size_t offset = CONFIG_MAX_RESERVED_SPEC_CONSTANTS;
+        mImmutableConstants = getMaterialConstantsList(
+                mNumImmutableConstants, ConstantMutability::IMMUTABLE, offset);
+        mMutableUnmanagedConstants = getMaterialConstantsList(
+                mNumMutableUnmanagedConstants, ConstantMutability::MUTABLE_UNMANAGED, offset);
+        mMutableManagedConstants = getMaterialConstantsList(
+                mNumMutableManagedConstants, ConstantMutability::MUTABLE_MANAGED, offset);
+    }
+
     // Flatten all container chunks into a single package and compute its CRC32 value, storing it as
     // a separate chunk.
     constexpr size_t crc32ChunkSize = sizeof(uint64_t) + sizeof(uint32_t) + sizeof(uint32_t);
@@ -1560,7 +1579,7 @@ bool MaterialBuilder::needsStandardDepthProgram() const noexcept {
 std::string MaterialBuilder::peek(backend::ShaderStage const stage,
         const CodeGenParams& params, const PropertyList& properties) noexcept {
 
-    ShaderGenerator const sg(properties, mVariables, mOutputs, mDefines, mConstants, mMutableConstants, mPushConstants,
+    ShaderGenerator const sg(properties, mVariables, mOutputs, mDefines, mConstants, mPushConstants,
             mMaterialFragmentCode.getResolved(), mMaterialFragmentCode.getLineOffset(),
             mMaterialVertexCode.getResolved(), mMaterialVertexCode.getLineOffset(),
             mMaterialDomain);
@@ -1686,15 +1705,10 @@ void MaterialBuilder::writeCommonChunks(ChunkContainer& container, MaterialInfo&
     container.push<MaterialDescriptorSetLayoutChunk>(info.sib);
 
     // User constant parameters
-    FixedCapacityVector<MaterialConstant> constantsEntry(mConstants.size());
-    std::transform(mConstants.begin(), mConstants.end(), constantsEntry.begin(),
-            [](Constant const& c) { return MaterialConstant(c.name, c.type); });
-    container.push<MaterialConstantParametersChunk>(std::move(constantsEntry));
-
-    FixedCapacityVector<MaterialMutableConstant> mutableConstantsEntry(mMutableConstants.size());
-    std::transform(mMutableConstants.begin(), mMutableConstants.end(), mutableConstantsEntry.begin(),
-            [](Constant const& c) { return MaterialMutableConstant(c.name, c.defaultValue.b); });
-    container.push<MaterialMutableConstantParametersChunk>(std::move(mutableConstantsEntry));
+    container.push<MaterialConstantParametersChunk>(
+            mImmutableConstants,
+            mMutableManagedConstants,
+            mMutableUnmanagedConstants);
 
     FixedCapacityVector<MaterialPushConstant> pushConstantsEntry(mPushConstants.size());
     std::transform(mPushConstants.begin(), mPushConstants.end(), pushConstantsEntry.begin(),
@@ -1800,5 +1814,28 @@ MaterialBuilder& MaterialBuilder::includeEssl1(bool const enabled) noexcept {
     mIncludeEssl1 = enabled;
     return *this;
 }
+
+
+MaterialConstantList MaterialBuilder::getMaterialConstantsList(
+        size_t size, ConstantMutability mutability, size_t& offset) const noexcept {
+    auto result = MaterialConstantList {
+        .offset = offset,
+        .list = FixedCapacityVector<MaterialConstant>(size),
+    };
+    size_t index = 0;
+    for (const auto& constant : mConstants) {
+        if (mutability != constant.mutability) {
+            continue;
+        }
+        result.list[index] = MaterialConstant(
+            constant.name,
+            constant.type,
+            constant.defaultValue);
+    }
+    FILAMENT_CHECK_POSTCONDITION(index == size);
+    offset += index;
+    return result;
+}
+
 
 } // namespace filamat

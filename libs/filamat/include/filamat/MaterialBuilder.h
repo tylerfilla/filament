@@ -27,6 +27,8 @@
 #include <backend/DriverEnums.h>
 #include <backend/TargetBufferInfo.h>
 
+#include <private/filament/ConstantInfo.h>
+
 #include <utils/BitmaskEnum.h>
 #include <utils/bitset.h>
 #include <utils/compiler.h>
@@ -122,6 +124,13 @@ public:
         NONE = 0,
         ALL = 0xFFFFFFFFFFFFFFFF
     };
+
+    enum class ConstantMutability {
+        IMMUTABLE,
+        MUTABLE_UNMANAGED,
+        MUTABLE_MANAGED,
+    };
+    static constexpr size_t NUM_CONSTANT_MUTABILITY = 3;
 
     /**
      * Initialize MaterialBuilder.
@@ -326,7 +335,7 @@ public:
             std::is_same<float, T>::value ||
             std::is_same<bool, T>::value>::type;
     template<typename T, typename = is_supported_constant_parameter_t<T>>
-    MaterialBuilder& constant(const char* name, ConstantType type, bool isMutable,
+    MaterialBuilder& constant(const char* name, ConstantType type, ConstantMutability mutability,
             T defaultValue = 0);
 
     /**
@@ -766,11 +775,8 @@ public:
     struct Constant {
         utils::CString name;
         ConstantType type;
-        union {
-            int32_t i;
-            float f;
-            bool b;
-        } defaultValue;
+        filament::MaterialConstant::DefaultValue defaultValue;
+        ConstantMutability mutability;
     };
 
     struct PushConstant {
@@ -892,6 +898,9 @@ private:
 
     bool isLit() const noexcept { return mShading != filament::Shading::UNLIT; }
 
+    filament::MaterialConstantList getMaterialConstantsList(
+            size_t size, ConstantMutability mutability, size_t& offset) const noexcept;
+
     utils::CString mMaterialName;
     utils::CString mFileName;
     utils::CString mCompilationParameters;
@@ -928,12 +937,14 @@ private:
     PropertyList mProperties;
     ParameterList mParameters;
     ConstantList mConstants;
-    ConstantList mMutableConstants;
     PushConstantList mPushConstants;
     SubpassList mSubpasses;
     VariableList mVariables;
     OutputList mOutputs;
     BufferList mBuffers;
+
+    std::array<size_t, NUM_CONSTANT_MUTABILITY> mNumConstants;
+    std::array<filament::MaterialConstantList, NUM_CONSTANT_MUTABILITY> mSortedConstants;
 
     ShaderQuality mShaderQuality = ShaderQuality::DEFAULT;
     FeatureLevel mFeatureLevel = FeatureLevel::FEATURE_LEVEL_1;

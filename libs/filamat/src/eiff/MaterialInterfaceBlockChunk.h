@@ -80,28 +80,13 @@ private:
 
 class MaterialConstantParametersChunk final : public Chunk {
 public:
-    explicit MaterialConstantParametersChunk(
-            FixedCapacityVector<filament::MaterialConstant> constants);
+    explicit MaterialConstantParametersChunk(filament::MaterialConstantLists constants);
     ~MaterialConstantParametersChunk() override = default;
 
 private:
     void flatten(Flattener&) override;
 
-    FixedCapacityVector<filament::MaterialConstant> mConstants;
-};
-
-// ------------------------------------------------------------------------------------------------
-
-class MaterialMutableConstantParametersChunk final : public Chunk {
-public:
-    explicit MaterialMutableConstantParametersChunk(
-            FixedCapacityVector<filament::MaterialMutableConstant> constants);
-    ~MaterialMutableConstantParametersChunk() override = default;
-
-private:
-    void flatten(Flattener&) override;
-
-    FixedCapacityVector<filament::MaterialMutableConstant> mConstants;
+    filament::MaterialConstantLists mConstants;
 };
 
 // ------------------------------------------------------------------------------------------------

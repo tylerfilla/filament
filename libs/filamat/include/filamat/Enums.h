@@ -30,6 +30,7 @@ using UniformType = MaterialBuilder::UniformType;
 using SamplerType = MaterialBuilder::SamplerType;
 using SubpassType = MaterialBuilder::SubpassType;
 using SamplerFormat = MaterialBuilder::SamplerFormat;
+using ConstantMutability = MaterialBuilder::ConstantMutability;
 using ParameterPrecision = MaterialBuilder::ParameterPrecision;
 using OutputTarget = MaterialBuilder::OutputTarget;
 using OutputQualifier = MaterialBuilder::VariableQualifier;

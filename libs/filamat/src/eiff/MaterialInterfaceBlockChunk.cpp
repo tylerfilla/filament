@@ -105,28 +105,19 @@ void MaterialSubpassInterfaceBlockChunk::flatten(Flattener& f) {
 // ------------------------------------------------------------------------------------------------
 
 MaterialConstantParametersChunk::MaterialConstantParametersChunk(
-        FixedCapacityVector<MaterialConstant> constants)
+        MaterialConstantLists constants)
     : Chunk(MaterialConstants), mConstants(std::move(constants)) {}
 
 void MaterialConstantParametersChunk::flatten(Flattener& f) {
-    f.writeUint64(mConstants.size());
-    for (const auto& constant : mConstants) {
-        f.writeString(constant.name.c_str());
-        f.writeUint8(static_cast<uint8_t>(constant.type));
-    }
-}
+    for (const MaterialConstantList& set : mConstants) {
+        f.writeUint64(set.offset);
+        f.writeUint64(set.list.size());
+        for (const auto& constant : set.list) {
+            f.writeString(constant.name.c_str());
+            f.writeUint8(static_cast<uint8_t>(constant.type));
+            f.writeUint32(static_cast<uint32_t>(constant.defaultValue.i));
+        }
 
-// ------------------------------------------------------------------------------------------------
-
-MaterialMutableConstantParametersChunk::MaterialMutableConstantParametersChunk(
-        FixedCapacityVector<MaterialMutableConstant> constants)
-    : Chunk(MaterialMutableConstants), mConstants(std::move(constants)) {}
-
-void MaterialMutableConstantParametersChunk::flatten(Flattener& f) {
-    f.writeUint64(mConstants.size());
-    for (const auto& constant : mConstants) {
-        f.writeString(constant.name.c_str());
-        f.writeBool(constant.defaultValue);
     }
 }
 
